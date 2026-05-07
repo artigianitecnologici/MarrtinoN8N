@@ -1,0 +1,5 @@
+.env
+models/whisper_cache/*
+out/*
+shared/*
+log/*

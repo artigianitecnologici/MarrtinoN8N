@@ -1,0 +1,115 @@
+services:
+  # ===========================================
+  # Postgres (per n8n)
+  # ===========================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    restart: unless-stopped
+    network_mode: "host"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_storage:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ===========================================
+  # Qdrant (Vector DB)
+  # ===========================================
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    restart: unless-stopped
+    network_mode: "host"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+
+  # ===========================================
+  # n8n
+  # ===========================================
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    restart: unless-stopped
+    network_mode: "host"
+    user: root
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: 127.0.0.1 # Modificato da 'postgres' a '127.0.0.1'
+      DB_POSTGRESDB_PORT: "5432"
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      N8N_USER_MANAGEMENT_JWT_SECRET: ${N8N_USER_MANAGEMENT_JWT_SECRET}
+      N8N_DEFAULT_BINARY_DATA_MODE: default
+      N8N_SECURE_COOKIE: "false"      
+      # --- CORREZIONI TRIGGER FILE LOCALE ---
+      N8N_BLOCK_FS_WRITE_ACCESS: "false"
+      NODES_EXCLUDE: "" # <--- Aggiunto per mostrare il nodo nell'interfaccia
+      #N8N_RESTRICT_FILE_ACCESS_TO: "/rag_files:/shared"  
+      # Lascia la stringa vuota per permettere l'accesso ovunque
+      N8N_RESTRICT_FILE_ACCESS_TO: ""
+      # --- AUTORIZZAZIONE MODULI NATIVI ---
+      NODE_FUNCTION_ALLOW_BUILTIN: "fs,path,crypto"
+      # --- AUTORIZZAZIONE LIBRERIE ESTERNE ---
+      NODE_FUNCTION_ALLOW_EXTERNAL: "cheerio"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./rag_documents:/rag_files
+      - ./shared:/shared
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+
+  # ===========================================
+  # E.V.A. & Telegram Bridge Unificato
+  # ===========================================
+  eva-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile.eva-bridge
+    container_name: eva-bridge
+    restart: unless-stopped
+    network_mode: "host"
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      N8N_WEBHOOK_URL: http://127.0.0.1:5678/webhook/telegram-bridge # Modificato da 'n8n' a '127.0.0.1'
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ./models:/app/models          # Voci Piper e Cache Whisper
+      - ./out:/app/out                # File audio wav/ogg in entrata e uscita
+      - ./config:/app/config          # Impostazioni bridge_config.json e eva_config.json
+      - ./shared:/shared              # Condivisione con n8n e docling
+      - ./log:/app/log                # Log di conversazione di Flask
+      - ./handlers:/app/handlers      # Plugin/Handler locali di Python
+      - ./eva_bridge.py:/app/eva_bridge.py # Mappa lo script direttamente
+    depends_on:
+      - n8n
+
+  # ===========================================
+  # Open WebUI (Commentato, ma convertito per host mode)
+  # ===========================================
+  # open-webui:
+  #   image: ghcr.io/open-webui/open-webui:main
+  #   container_name: open-webui
+  #   restart: unless-stopped
+  #   network_mode: "host"
+  #   environment:
+  #     - OLLAMA_BASE_URL=http://127.0.0.1:11434 # Usa 127.0.0.1 per Ollama sul PC host
+  #   volumes:
+  #     - open-webui_data:/app/backend/data
+
+volumes:
+  postgres_storage:
+  n8n_data:
+  qdrant_storage:
+  # open-webui_data:

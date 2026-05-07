@@ -1,0 +1,24 @@
+# ==========================================
+# Configurazione Database (PostgreSQL)
+# ==========================================
+POSTGRES_USER=n8n
+POSTGRES_PASSWORD=mypwd2020@!
+POSTGRES_DB=n8n
+
+# ==========================================
+# Configurazione n8n
+# ==========================================
+# Chiave usata da n8n per criptare le credenziali (es. API Key di Google/OpenAI) nel database.
+# IMPORTANTE: Se la perdi, perdi l'accesso a tutte le credenziali salvate!
+# Genera una stringa casuale lunga (puoi premere tasti a caso).
+N8N_ENCRYPTION_KEY=mypwd2020@!key
+N8N_BLOCK_FS=false
+# Segreto per la gestione delle sessioni utente e JWT.
+# Genera un'altra stringa casuale diversa dalla precedente.
+N8N_USER_MANAGEMENT_JWT_SECRET=mypwd2020@!key2
+
+# ==========================================
+# Configurazione Telegram Bridge
+# ==========================================
+# Il token che hai ricevuto da @BotFather su Telegram quando hai creato il bot.
+TELEGRAM_BOT_TOKEN=

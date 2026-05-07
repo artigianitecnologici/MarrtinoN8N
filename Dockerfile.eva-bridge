@@ -1,0 +1,21 @@
+FROM python:3.10-slim
+
+# Installiamo ffmpeg per la gestione audio
+RUN apt-get update && apt-get install -y ffmpeg wget && rm -rf /var/lib/apt/lists/*
+
+# Installiamo piper-tts e la dipendenza mancante pathvalidate per la generazione della voce
+RUN pip install --no-cache-dir piper-tts pathvalidate
+
+# Installiamo TUTTE le dipendenze per FastAPI, Whisper, Telegram, e ora E.V.A. (Flask, Ollama)
+RUN pip install --no-cache-dir requests faster-whisper fastapi uvicorn python-multipart flask werkzeug ollama
+
+WORKDIR /app
+
+# Copiamo lo script unificato
+COPY eva_bridge.py .
+
+# Esponiamo le porte per chiarezza (5000 per E.V.A., 8000 per il Bridge)
+EXPOSE 5000 8000
+
+# Avviamo lo script unificato
+CMD ["python", "eva_bridge.py"]
